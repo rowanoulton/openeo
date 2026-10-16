@@ -254,24 +254,28 @@ def get_ssh_public_key():
 
 
 def is_valid_ssid(ssid):
+    # SSIDs are up to 32 bytes and may contain any UTF-8 text (including emoji and
+    # punctuation). nmcli is called with an argument list, not a shell, so only
+    # control characters need rejecting.
     return (
         isinstance(ssid, str) and
-        1 <= len(ssid) <= 32 and
-        re.match(r"^[\w\s\-\.]+$", ssid)
+        1 <= len(ssid.encode("utf-8")) <= 32 and
+        ssid.isprintable()
     )
 
 def is_valid_password(password):
+    # WPA passphrase: 8-63 printable ASCII characters (spaces allowed), or a 64-digit hex key
     return (
         isinstance(password, str) and
-        8 <= len(password) <= 64 and
-        re.match(r"^[\x21-\x7E]+$", password)  # Printable ASCII without spaces
+        (re.fullmatch(r"[\x20-\x7E]{8,63}", password) or
+         re.fullmatch(r"[0-9A-Fa-f]{64}", password)) is not None
     )
 
 def setup_wifi_connection(ssid, password):
     try:
         if DRYRUN:
             print(f"setup_wifi_connection {ssid} {password} - dryrun - not executed\n")
-            return 0
+            return True, "dryrun"
         
         # Delete any existing connection with this name
         subprocess.run(['sudo','nmcli', 'connection', 'delete', CONNECTION_NAME],

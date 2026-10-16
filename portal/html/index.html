@@ -431,7 +431,14 @@
     }
     msg.textContent = "Connecting.. Refreshing page..";
     try {
-      await fetch(`/api/set_wifi?ssid=${encodeURIComponent(selectedSSID)}&password=${encodeURIComponent(password)}`);
+      const res = await fetch(`/api/set_wifi?ssid=${encodeURIComponent(selectedSSID)}&password=${encodeURIComponent(password)}`);
+      // Show validation and connection errors instead of silently reloading
+      const result = await res.json().catch(() => ({}));
+      if (result.error || result.connected_to_wifi === false) {
+        msg.textContent = "Failed: " + (result.error || result.nmcli_message || "could not connect");
+        msg.style.color = "#f44336";
+        return;
+      }
       await new Promise(r => setTimeout(r, 5000));
       location.reload();
     } catch (err) {
